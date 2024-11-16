@@ -1,0 +1,46 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-users-friends
+      author: LCP
+      changes:
+        - createTable:
+            tableName: friendships
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: friend_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: friendships
+            baseColumnNames: user_id
+            constraintName: fk_friendships_user
+            referencedTableName: users
+            referencedColumnNames: id
+
+        - addForeignKeyConstraint:
+            baseTableName: friendships
+            baseColumnNames: friend_id
+            constraintName: fk_friendships_friend
+            referencedTableName: users
+            referencedColumnNames: id
+
+        - addUniqueConstraint:
+            tableName: friendships
+            columnNames: user_id, friend_id
+            constraintName: uq_friendships_user_friend
