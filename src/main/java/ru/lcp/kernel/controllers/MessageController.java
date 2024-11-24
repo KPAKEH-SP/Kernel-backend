@@ -1,26 +1,31 @@
 package ru.lcp.kernel.controllers;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Controller;
-import ru.lcp.kernel.dtos.ChatMessage;
+import ru.lcp.kernel.dtos.ChatRequest;
 import ru.lcp.kernel.dtos.ChatResponse;
+import ru.lcp.kernel.services.MessageService;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.List;
+
 
 @Controller
+@RequiredArgsConstructor
 public class MessageController {
+    private final MessageService messageService;
 
     @MessageMapping("/chat/{chatId}")
     @SendTo("/topic/chat/{chatId}")
-    public ChatResponse sendMessage(@DestinationVariable Long chatId, ChatMessage chatMessage) {
-        ChatResponse response = new ChatResponse();
-        response.setSender(chatMessage.getSender());
-        response.setContent(chatMessage.getContent());
-        response.setChatId(chatId);
-        response.setTimestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-        return response;
+    public ChatResponse handleMessage(@DestinationVariable Long chatId, ChatRequest chatRequest) {
+        return messageService.saveMessage(chatId, chatRequest);
+    }
+
+    @MessageMapping("/chat/history/{chatId}")
+    @SendTo("/topic/chat/history/{chatId}")
+    public List<ChatResponse> sendChatHistory(@DestinationVariable Long chatId) {
+        return messageService.getMessages(chatId);
     }
 }
