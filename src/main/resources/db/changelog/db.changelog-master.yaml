@@ -9,3 +9,5 @@ databaseChangeLog:
       file: db/changelog/changeset/create-users-friends-table.yaml
   - include:
       file: db/changelog/changeset/create-chats-table.yaml
+  - include:
+      file: db/changelog/changeset/create-messages-table.yaml
