@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import ru.lcp.kernel.dtos.AcceptFriendRequest;
 import ru.lcp.kernel.dtos.AddFriendRequest;
 import ru.lcp.kernel.dtos.GetFriendRequest;
 import ru.lcp.kernel.dtos.RemoveFriendRequest;
@@ -30,5 +31,10 @@ public class FriendsController {
     @PostMapping("/remove")
     public ResponseEntity<?> removeFriend(@RequestBody RemoveFriendRequest removeFriendRequest) {
         return friendshipService.removeFriend(removeFriendRequest);
+    }
+
+    @PostMapping("/accept")
+    public ResponseEntity<?> acceptFriend(@RequestBody AcceptFriendRequest acceptFriendRequest) {
+        return friendshipService.acceptRequest(acceptFriendRequest);
     }
 }

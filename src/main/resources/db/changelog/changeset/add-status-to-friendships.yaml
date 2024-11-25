@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-status-to-friendships
+      author: LCP
+      changes:
+        - addColumn:
+            tableName: friendships
+            columns:
+              - column:
+                  name: status
+                  type: varchar
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false

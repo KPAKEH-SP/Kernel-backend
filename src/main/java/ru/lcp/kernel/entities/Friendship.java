@@ -18,4 +18,7 @@ public class Friendship {
     @ManyToOne
     @JoinColumn(name = "friend_id")
     private User friend;
+
+    @Column(name = "status")
+    private String status;
 }
