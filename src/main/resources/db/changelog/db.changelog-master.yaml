@@ -11,3 +11,5 @@ databaseChangeLog:
       file: db/changelog/changeset/create-chats-table.yaml
   - include:
       file: db/changelog/changeset/create-messages-table.yaml
+  - include:
+      file: db/changelog/changeset/add-status-to-friendships.yaml
