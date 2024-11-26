@@ -1,7 +1,10 @@
 package ru.lcp.kernel.services;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import ru.lcp.kernel.dtos.ChatRequest;
 import ru.lcp.kernel.dtos.ChatResponse;
@@ -27,6 +30,7 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final JwtTokenUtils jwtTokenUtils;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate simpMessagingTemplate;
     @Value("${jwt.secret-messages}")
     private String secret;
 
@@ -41,7 +45,6 @@ public class MessageService {
         }
     }
 
-    // Метод шифрования
     public String encrypt(String message) {
         try {
             SecretKeySpec keySpec = generateKey();
@@ -54,7 +57,6 @@ public class MessageService {
         }
     }
 
-    // Метод расшифровки
     public String decrypt(String encryptedMessage) {
         try {
             SecretKeySpec keySpec = generateKey();
@@ -67,6 +69,7 @@ public class MessageService {
         }
     }
 
+    @Transactional
     public ChatResponse saveMessage(Long chatId, ChatRequest chatRequest) {
         String encryptedContent = encrypt(chatRequest.getContent());
 
@@ -78,7 +81,7 @@ public class MessageService {
         chatMessage.setContent(encryptedContent);
         chatMessage.setSender(sender);
 
-        messageRepository.save(chatMessage);
+        ChatMessage message = messageRepository.save(chatMessage);
 
         ChatResponse chatResponse = new ChatResponse();
         chatResponse.setChatId(chatId);
@@ -86,6 +89,7 @@ public class MessageService {
         String timestamp = chatMessage.getTimestamp().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         chatResponse.setTimestamp(timestamp);
         chatResponse.setContent(decrypt(encryptedContent));
+        chatResponse.setMessageId(message.getId());
 
         return chatResponse;
     }
@@ -100,9 +104,18 @@ public class MessageService {
             chatResponse.setSender(message.getSender().getUsername());
             chatResponse.setTimestamp(message.getTimestamp().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             chatResponse.setContent(decrypt(message.getContent()));
+            chatResponse.setMessageId(message.getId());
             chatResponses.add(chatResponse);
         }
 
         return chatResponses;
+    }
+
+    @Transactional
+    public ResponseEntity<?> deleteMessage(Long messageId, Long chatId) {
+        messageRepository.deleteById(messageId);
+
+        simpMessagingTemplate.convertAndSend("/topic/chat/history/" + chatId, getMessages(chatId));
+        return ResponseEntity.ok("message deleted successfully");
     }
 }
