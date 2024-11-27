@@ -17,6 +17,7 @@ import ru.lcp.kernel.utils.JwtTokenUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -41,7 +42,7 @@ public class ChatService {
         Optional<Long> existingChatId = chatRepository.findExistingChatIdBetweenUsers(userOpt.get().getId(), friendOpt.get().getId());
 
         if (existingChatId.isPresent()) {
-            return getChatsForUser(userOpt.get().getId());
+            return getChatsForUserById(userOpt.get().getId());
         }
 
         Long chatId = System.currentTimeMillis();
@@ -57,10 +58,10 @@ public class ChatService {
         chatRepository.save(chatForUser);
         chatRepository.save(chatForFriend);
 
-        return getChatsForUser(userOpt.get().getId());
+        return getChatsForUserById(userOpt.get().getId());
     }
 
-    public ResponseEntity<?> getChatsForUser(Integer userId) {
+    public ResponseEntity<?> getChatsForUserById(UUID userId) {
         List<Chat> chats = chatRepository.findByUserId(userId);
         List<PublicChat> publicChats = new ArrayList<>();
 
@@ -85,7 +86,7 @@ public class ChatService {
         return ResponseEntity.ok(publicChats);
     }
 
-    public ResponseEntity<?> getChatsForUser(String token) {
+    public ResponseEntity<?> getChatsForUserByToken(String token) {
         String username = jwtTokenUtils.getUsername(token);
         Optional<User> userOpt = userService.findByUsername(username);
 
@@ -94,6 +95,6 @@ public class ChatService {
         }
 
         User user = userOpt.get();
-        return getChatsForUser(user.getId());
+        return getChatsForUserById(user.getId());
     }
 }

@@ -20,6 +20,6 @@ public class ChatController {
 
     @PostMapping("/get")
     public ResponseEntity<?> getAllChats(@RequestBody UserInfoRequest request) {
-        return chatService.getChatsForUser(request.getToken());
+        return chatService.getChatsForUserByToken(request.getToken());
     }
 }

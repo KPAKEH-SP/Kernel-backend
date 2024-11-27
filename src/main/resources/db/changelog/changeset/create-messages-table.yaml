@@ -22,7 +22,7 @@ databaseChangeLog:
 
               - column:
                   name: sender_id
-                  type: bigint
+                  type: uuid
                   constraints:
                     nullable: false
 

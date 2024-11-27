@@ -16,13 +16,13 @@ databaseChangeLog:
 
               - column:
                   name: user_id
-                  type: bigint
+                  type: uuid
                   constraints:
                     nullable: false
 
               - column:
                   name: friend_id
-                  type: bigint
+                  type: uuid
                   constraints:
                     nullable: false
 
