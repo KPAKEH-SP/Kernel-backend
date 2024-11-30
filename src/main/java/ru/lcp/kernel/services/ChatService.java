@@ -42,7 +42,7 @@ public class ChatService {
         Optional<Long> existingChatId = chatRepository.findExistingChatIdBetweenUsers(userOpt.get().getId(), friendOpt.get().getId());
 
         if (existingChatId.isPresent()) {
-            return getChatsForUserById(userOpt.get().getId());
+            return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), existingChatId.get().toString()), HttpStatus.CONFLICT);
         }
 
         Long chatId = System.currentTimeMillis();
