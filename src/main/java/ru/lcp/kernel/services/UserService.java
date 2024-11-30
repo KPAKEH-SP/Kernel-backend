@@ -104,7 +104,7 @@ public class UserService implements UserDetailsService {
             Files.createDirectories(filePath.getParent());
             Files.write(filePath, file.getBytes());
 
-            return getAvatar(user.getUsername());
+            return ResponseEntity.ok(HttpStatus.CREATED);
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error uploading file");
         }
