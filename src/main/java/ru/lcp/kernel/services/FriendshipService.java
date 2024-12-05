@@ -10,10 +10,12 @@ import ru.lcp.kernel.dtos.*;
 import ru.lcp.kernel.entities.Friendship;
 import ru.lcp.kernel.entities.User;
 import ru.lcp.kernel.exceptions.ApplicationError;
+import ru.lcp.kernel.exceptions.UserNotFound;
 import ru.lcp.kernel.repositories.FriendshipRepository;
 import ru.lcp.kernel.repositories.UserRepository;
 import ru.lcp.kernel.utils.JwtTokenUtils;
 import ru.lcp.kernel.utils.PrivateUserConvertor;
+import ru.lcp.kernel.utils.UserUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,41 +29,37 @@ public class FriendshipService {
     private final JwtTokenUtils jwtTokenUtils;
     private final PrivateUserConvertor privateUserConvertor;
     private final SimpMessagingTemplate simpMessagingTemplate;
+    private final UserUtils userUtils;
 
     @Transactional
-    public ResponseEntity<?> addFriend(AddFriendRequest addFriendRequest) {
-        String username = jwtTokenUtils.getUsername(addFriendRequest.getToken());
+    public ResponseEntity<?> addFriend(TokenAndFriendUsername tokenAndFriendUsername) {
+        try {
+            User user = userUtils.getByToken(tokenAndFriendUsername.getToken());
+            User friend = userUtils.getByUsername(tokenAndFriendUsername.getFriendUsername());
 
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        Optional<User> friendOpt = userRepository.findByUsername(addFriendRequest.getFriendName());
+            if (user.getId().equals(friend.getId())) {
+                return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "You can't add yourself as a friend"), HttpStatus.CONFLICT);
+            }
 
-        if (userOpt.isEmpty() || friendOpt.isEmpty()) {
+            if (friendshipRepository.findByUserIdAndFriendId(user.getId(), friend.getId()).isPresent()
+                    || friendshipRepository.findByUserIdAndFriendId(friend.getId(), user.getId()).isPresent()) {
+                return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User is already friend"), HttpStatus.CONFLICT);
+            }
+
+            Friendship friendship = new Friendship();
+            friendship.setUser(user);
+            friendship.setFriend(friend);
+            friendship.setStatus("PENDING");
+            friendshipRepository.save(friendship);
+
+            GetFriendRequest getFriendRequest = new GetFriendRequest();
+            getFriendRequest.setToken(tokenAndFriendUsername.getToken());
+
+            simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "new friend request");
+            return ResponseEntity.ok(getFriends(getFriendRequest));
+        } catch (UserNotFound userNotFound) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
         }
-
-        User user = userOpt.get();
-        User friend = friendOpt.get();
-
-        if (user.getId().equals(friend.getId())) {
-            return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "You can't add yourself as a friend"), HttpStatus.CONFLICT);
-        }
-
-        if (friendshipRepository.findByUserIdAndFriendId(user.getId(), friend.getId()).isPresent()
-                || friendshipRepository.findByUserIdAndFriendId(friend.getId(), user.getId()).isPresent()) {
-            return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User is already friend"), HttpStatus.CONFLICT);
-        }
-
-        Friendship friendship = new Friendship();
-        friendship.setUser(userOpt.get());
-        friendship.setFriend(friendOpt.get());
-        friendship.setStatus("PENDING");
-        friendshipRepository.save(friendship);
-
-        GetFriendRequest getFriendRequest = new GetFriendRequest();
-        getFriendRequest.setToken(addFriendRequest.getToken());
-
-        simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "new friend request");
-        return ResponseEntity.ok(getFriends(getFriendRequest));
     }
 
     public ResponseEntity<?> getFriends(GetFriendRequest getFriendRequest) {
@@ -113,67 +111,57 @@ public class FriendshipService {
     }
 
     @Transactional
-    public ResponseEntity<?> removeFriend(RemoveFriendRequest removeFriendRequest) {
-        String username = jwtTokenUtils.getUsername(removeFriendRequest.getUserToken());
+    public ResponseEntity<?> removeFriend(TokenAndFriendUsername tokenAndFriendUsername) {
+        try {
+            User user = userUtils.getByToken(tokenAndFriendUsername.getToken());
+            User friend = userUtils.getByUsername(tokenAndFriendUsername.getFriendUsername());
 
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        Optional<User> friendOpt = userRepository.findByUsername(removeFriendRequest.getFriendUsername());
+            Optional<Friendship> friendshipAsUserOpt = friendshipRepository.findByUserIdAndFriendId(user.getId(), friend.getId());
+            Optional<Friendship> friendshipAsFriendOpt = friendshipRepository.findByUserIdAndFriendId(friend.getId(), user.getId());
 
-        if (userOpt.isEmpty() || friendOpt.isEmpty()) {
-            return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
-        }
+            if (friendshipAsUserOpt.isEmpty()) {
+                if (friendshipAsFriendOpt.isPresent()) {
+                    friendshipRepository.delete(friendshipAsFriendOpt.get());
 
-        User user = userOpt.get();
-        User friend = friendOpt.get();
-
-        Optional<Friendship> friendshipAsUserOpt = friendshipRepository.findByUserIdAndFriendId(user.getId(), friend.getId());
-        Optional<Friendship> friendshipAsFriendOpt = friendshipRepository.findByUserIdAndFriendId(friend.getId(), user.getId());
-
-        if (friendshipAsUserOpt.isEmpty()) {
-            if (friendshipAsFriendOpt.isPresent()) {
-                friendshipRepository.delete(friendshipAsFriendOpt.get());
+                    GetFriendRequest getFriendRequest = new GetFriendRequest();
+                    getFriendRequest.setToken(tokenAndFriendUsername.getToken());
+                    return ResponseEntity.ok(getFriends(getFriendRequest));
+                }
+                return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User is not your friend"), HttpStatus.CONFLICT);
+            } else {
+                friendshipRepository.delete(friendshipAsUserOpt.get());
 
                 GetFriendRequest getFriendRequest = new GetFriendRequest();
-                getFriendRequest.setToken(removeFriendRequest.getUserToken());
+                getFriendRequest.setToken(tokenAndFriendUsername.getToken());
+                simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "friend/request removed");
                 return ResponseEntity.ok(getFriends(getFriendRequest));
             }
-            return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User is not your friend"), HttpStatus.CONFLICT);
-        } else {
-            friendshipRepository.delete(friendshipAsUserOpt.get());
-
-            GetFriendRequest getFriendRequest = new GetFriendRequest();
-            getFriendRequest.setToken(removeFriendRequest.getUserToken());
-            simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "friend/request removed");
-            return ResponseEntity.ok(getFriends(getFriendRequest));
+        } catch (UserNotFound e) {
+            return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
         }
     }
 
     @Transactional
-    public ResponseEntity<?> acceptRequest(AcceptFriendRequest acceptFriendRequest) {
-        String username = jwtTokenUtils.getUsername(acceptFriendRequest.getToken());
+    public ResponseEntity<?> acceptRequest(TokenAndFriendUsername tokenAndFriendUsername) {
+        try {
+            User user = userUtils.getByToken(tokenAndFriendUsername.getToken());
+            User friend = userUtils.getByUsername(tokenAndFriendUsername.getFriendUsername());
 
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        Optional<User> friendOpt = userRepository.findByUsername(acceptFriendRequest.getFriendUsername());
+            Optional<Friendship> friendship = friendshipRepository.findByUserIdAndFriendId(friend.getId(), user.getId());
 
-        if (userOpt.isEmpty() || friendOpt.isEmpty()) {
+            if (friendship.isEmpty()) {
+                return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User is not your friend"), HttpStatus.CONFLICT);
+            }
+
+            friendship.get().setStatus("ACCEPTED");
+            friendshipRepository.save(friendship.get());
+
+            GetFriendRequest getFriendRequest = new GetFriendRequest();
+            getFriendRequest.setToken(tokenAndFriendUsername.getToken());
+            simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "friend request accepted");
+            return ResponseEntity.ok(getFriends(getFriendRequest));
+        } catch (UserNotFound e) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
         }
-
-        User user = userOpt.get();
-        User friend = friendOpt.get();
-
-        Optional<Friendship> friendship = friendshipRepository.findByUserIdAndFriendId(friend.getId(), user.getId());
-
-        if (friendship.isEmpty()) {
-            return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User is not your friend"), HttpStatus.CONFLICT);
-        }
-
-        friendship.get().setStatus("ACCEPTED");
-        friendshipRepository.save(friendship.get());
-
-        GetFriendRequest getFriendRequest = new GetFriendRequest();
-        getFriendRequest.setToken(acceptFriendRequest.getToken());
-        simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "friend request accepted");
-        return ResponseEntity.ok(getFriends(getFriendRequest));
     }
 }
