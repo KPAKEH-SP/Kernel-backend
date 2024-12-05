@@ -6,10 +6,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import ru.lcp.kernel.dtos.AcceptFriendRequest;
-import ru.lcp.kernel.dtos.AddFriendRequest;
-import ru.lcp.kernel.dtos.GetFriendRequest;
-import ru.lcp.kernel.dtos.RemoveFriendRequest;
+import ru.lcp.kernel.dtos.*;
 import ru.lcp.kernel.services.FriendshipService;
 
 @RestController
@@ -19,8 +16,8 @@ public class FriendsController {
     private final FriendshipService friendshipService;
 
     @PostMapping("/add")
-    public ResponseEntity<?> addFriend(@RequestBody AddFriendRequest addFriendRequest) {
-        return friendshipService.addFriend(addFriendRequest);
+    public ResponseEntity<?> addFriend(@RequestBody TokenAndFriendUsername tokenAndFriendUsername) {
+        return friendshipService.addFriend(tokenAndFriendUsername);
     }
 
     @PostMapping("/get")
@@ -29,12 +26,12 @@ public class FriendsController {
     }
 
     @PostMapping("/remove")
-    public ResponseEntity<?> removeFriend(@RequestBody RemoveFriendRequest removeFriendRequest) {
-        return friendshipService.removeFriend(removeFriendRequest);
+    public ResponseEntity<?> removeFriend(@RequestBody TokenAndFriendUsername tokenAndFriendUsername) {
+        return friendshipService.removeFriend(tokenAndFriendUsername);
     }
 
     @PostMapping("/accept")
-    public ResponseEntity<?> acceptFriend(@RequestBody AcceptFriendRequest acceptFriendRequest) {
-        return friendshipService.acceptRequest(acceptFriendRequest);
+    public ResponseEntity<?> acceptFriend(@RequestBody TokenAndFriendUsername tokenAndFriendUsername) {
+        return friendshipService.acceptRequest(tokenAndFriendUsername);
     }
 }
