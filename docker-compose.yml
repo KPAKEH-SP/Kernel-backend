@@ -9,10 +9,21 @@ services:
     environment:
       - 'POSTGRES_USER=postgres'
       - 'POSTGRES_PASSWORD=123456'
-      - 'POSTGERS_DB=kernel-users'
+      - 'POSTGRES_DB=kernel-users'
+    networks:
+      - kernel-network
 
   atm-backend:
     build: ./
     container_name: 'kernel-backend'
     ports:
       - 8080:8080
+    environment:
+      - 'SPRING_DATASOURCE_URL=jdbc:postgresql://kernel-postgres:5432/kernel-users'
+      - 'SPRING_DATASOURCE_USERNAME=postgres'
+      - 'SPRING_DATASOURCE_PASSWORD=123456'
+    networks:
+      - kernel-network
+
+networks:
+  kernel-network:
