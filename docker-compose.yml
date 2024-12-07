@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  postgres:
+    image: 'postgres'
+    container_name: 'kernel-postgres'
+    ports:
+      - 5432:5432
+    environment:
+      - 'POSTGRES_USER=postgres'
+      - 'POSTGRES_PASSWORD=123456'
+      - 'POSTGERS_DB=kernel-users'
+
+  atm-backend:
+    build: ./
+    container_name: 'kernel-backend'
+    ports:
+      - 8080:8080
