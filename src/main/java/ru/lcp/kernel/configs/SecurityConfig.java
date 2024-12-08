@@ -45,7 +45,7 @@ public class SecurityConfig extends SecurityConfigurerAdapter implements WebMvcC
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:3000", "http://localhost:5173")
+                .allowedOrigins("https://kernel-frontend-one.vercel.app")
                 .allowedMethods("GET", "POST", "PUT", "DELETE")
                 .allowedMethods("*");
     }
