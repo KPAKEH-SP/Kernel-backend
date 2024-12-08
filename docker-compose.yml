@@ -13,7 +13,7 @@ services:
     networks:
       - kernel-network
 
-  atm-backend:
+  kernel-backend:
     build: ./
     container_name: 'kernel-backend'
     ports:
