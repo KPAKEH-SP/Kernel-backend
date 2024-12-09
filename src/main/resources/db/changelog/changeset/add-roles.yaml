@@ -1,0 +1,17 @@
+databaseChangeLog:
+- changeSet:
+    id: add-status-to-friendships
+    author: LCP
+    changes:
+      - insert:
+          tableName: roles
+          columns:
+            - column:
+                name: name
+                value: 'ROLE_USER'
+      - insert:
+          tableName: roles
+          columns:
+            - column:
+                name: name
+                value: 'ROLE_ADMIN'
