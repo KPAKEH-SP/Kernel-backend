@@ -4,21 +4,21 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import ru.lcp.kernel.services.UserService;
+import ru.lcp.kernel.services.AvatarService;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/users")
 public class UserAvatarController {
-    private final UserService userService;
+    private final AvatarService avatarService;
 
     @PostMapping("/avatar/upload/{userToken}")
     public ResponseEntity<?> uploadAvatar(@PathVariable String userToken, @RequestParam("file") MultipartFile file) {
-        return userService.uploadAvatar(userToken, file);
+        return avatarService.uploadAvatar(userToken, file);
     }
 
     @GetMapping("/avatar/get/{username}")
     public ResponseEntity<?> getAvatar(@PathVariable String username) {
-        return userService.getAvatar(username);
+        return avatarService.getAvatar(username);
     }
 }
