@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.lcp.kernel.dtos.*;
 import ru.lcp.kernel.entities.Friendship;
 import ru.lcp.kernel.entities.User;
+import ru.lcp.kernel.enums.NotificationPatterns;
 import ru.lcp.kernel.exceptions.ApplicationError;
 import ru.lcp.kernel.exceptions.UserNotFound;
 import ru.lcp.kernel.repositories.FriendshipRepository;
@@ -30,6 +31,7 @@ public class FriendshipService {
     private final PrivateUserConvertor privateUserConvertor;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final UserUtils userUtils;
+    private final NotificationService notificationService;
 
     @Transactional
     public ResponseEntity<?> addFriend(TokenAndFriendUsername tokenAndFriendUsername) {
@@ -56,6 +58,8 @@ public class FriendshipService {
             getFriendRequest.setToken(tokenAndFriendUsername.getToken());
 
             simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "new friend request");
+            notificationService.sendNotification(user, NotificationPatterns.NEW_FRIEND_REQUEST, friend);
+
             return ResponseEntity.ok(getFriends(getFriendRequest));
         } catch (UserNotFound userNotFound) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
