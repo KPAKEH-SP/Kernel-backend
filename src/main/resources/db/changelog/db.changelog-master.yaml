@@ -15,3 +15,5 @@ databaseChangeLog:
       file: db/changelog/changeset/add-status-to-friendships.yaml
   - include:
       file: db/changelog/changeset/add-roles.yaml
+  - include:
+      file: db/changelog/changeset/create-notifications-table.yaml
