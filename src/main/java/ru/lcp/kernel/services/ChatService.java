@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -95,5 +96,9 @@ public class ChatService {
 
         User user = userOpt.get();
         return getChatsForUserById(user.getId());
+    }
+
+    public List<User> getChatUsers(Long chatId) {
+        return chatRepository.findByChatId(chatId).stream().map(Chat::getUser).collect(Collectors.toList());
     }
 }

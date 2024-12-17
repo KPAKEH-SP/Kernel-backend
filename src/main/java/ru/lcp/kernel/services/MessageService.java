@@ -10,6 +10,7 @@ import ru.lcp.kernel.dtos.ChatRequest;
 import ru.lcp.kernel.dtos.ChatResponse;
 import ru.lcp.kernel.entities.ChatMessage;
 import ru.lcp.kernel.entities.User;
+import ru.lcp.kernel.enums.NotificationPatterns;
 import ru.lcp.kernel.repositories.MessageRepository;
 import ru.lcp.kernel.repositories.UserRepository;
 import ru.lcp.kernel.utils.JwtTokenUtils;
@@ -31,6 +32,8 @@ public class MessageService {
     private final JwtTokenUtils jwtTokenUtils;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate simpMessagingTemplate;
+    private final ChatService chatService;
+    private final NotificationService notificationService;
     @Value("${jwt.secret-messages}")
     private String secret;
 
@@ -90,6 +93,14 @@ public class MessageService {
         chatResponse.setTimestamp(timestamp);
         chatResponse.setContent(decrypt(encryptedContent));
         chatResponse.setMessageId(message.getId());
+
+        List<User> users = chatService.getChatUsers(chatId);
+
+        for (User user : users) {
+            if (user != sender) {
+                notificationService.sendNotification(sender, NotificationPatterns.NEW_MESSAGE, user);
+            }
+        }
 
         return chatResponse;
     }
