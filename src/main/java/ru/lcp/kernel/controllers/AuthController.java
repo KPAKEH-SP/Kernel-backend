@@ -2,13 +2,9 @@ package ru.lcp.kernel.controllers;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import ru.lcp.kernel.dtos.JwtRequest;
 import ru.lcp.kernel.dtos.RegistrationUserDto;
-import ru.lcp.kernel.dtos.UserInfoRequest;
 import ru.lcp.kernel.services.AuthService;
 
 @RestController
@@ -27,8 +23,8 @@ public class AuthController {
         return authService.createNewUser(registrationUserDto);
     }
 
-    @PostMapping("/user-info")
-    public ResponseEntity<?> userInfo(@RequestBody UserInfoRequest userInfoRequest) {
-        return authService.userInfo(userInfoRequest);
+    @GetMapping("/user-info")
+    public ResponseEntity<?> userInfo(@RequestHeader("X-Token") String token) {
+        return authService.userInfo(token);
     }
 }

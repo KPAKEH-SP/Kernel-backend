@@ -51,9 +51,9 @@ public class AuthService {
         return ResponseEntity.ok(newUserToken);
     }
 
-    public ResponseEntity<?> userInfo(UserInfoRequest userInfoRequest) {
+    public ResponseEntity<?> userInfo(String token) {
         try {
-            String username = jwtTokenUtils.getUsername(userInfoRequest.getToken());
+            String username = jwtTokenUtils.getUsername(token);
             Optional<User> userOptional = userService.findByUsername(username);
 
             if (userOptional.isEmpty()) {
