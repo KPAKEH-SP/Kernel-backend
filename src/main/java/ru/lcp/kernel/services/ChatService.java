@@ -44,11 +44,11 @@ public class ChatService {
             UUID chatId = UUID.randomUUID();
 
             Chat chatForUser = new Chat();
-            chatForUser.setId(chatId);
+            chatForUser.setChatId(chatId);
             chatForUser.setUser(user);
 
             Chat chatForFriend = new Chat();
-            chatForFriend.setId(chatId);
+            chatForFriend.setChatId(chatId);
             chatForFriend.setUser(friend);
 
             chatRepository.save(chatForUser);
@@ -65,8 +65,8 @@ public class ChatService {
         List<PublicChat> publicChats = new ArrayList<>();
 
         for(Chat chat : chats) {
-            UUID chatId = chat.getId();
-            List<Chat> chatUsers = chatRepository.findAllById(chatId);
+            UUID chatId = chat.getChatId();
+            List<Chat> chatUsers = chatRepository.findAllByChatId(chatId);
 
             PublicChat publicChat = new PublicChat();
             publicChat.setChatId(chatId);
@@ -98,6 +98,6 @@ public class ChatService {
     }
 
     public List<User> getChatUsers(UUID chatId) {
-        return chatRepository.findAllById(chatId).stream().map(Chat::getUser).collect(Collectors.toList());
+        return chatRepository.findAllByChatId(chatId).stream().map(Chat::getUser).collect(Collectors.toList());
     }
 }
