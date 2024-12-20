@@ -8,40 +8,33 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: bigserial
-                  autoIncrement: true
+                  type: uuid
+                  defaultValueComputed: "gen_random_uuid()"
                   constraints:
                     primaryKey: true
                     nullable: false
-
               - column:
                   name: chat_id
-                  type: bigint
+                  type: uuid
                   constraints:
                     nullable: false
-
+                    foreignKeyName: fk_chat
+                    references: chats(id)
               - column:
                   name: sender_id
                   type: uuid
                   constraints:
                     nullable: false
-
+                    foreignKeyName: fk_sender
+                    references: users(id)
               - column:
                   name: content
                   type: text
                   constraints:
                     nullable: false
-
               - column:
                   name: timestamp
                   type: timestamp
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
-
-        - addForeignKeyConstraint:
-            baseTableName: messages
-            baseColumnNames: sender_id
-            constraintName: fk_messages_users
-            referencedTableName: users
-            referencedColumnNames: id

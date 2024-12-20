@@ -8,37 +8,25 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: bigint
-                  autoIncrement: true
+                  type: uuid
+                  defaultValueComputed: "gen_random_uuid()"
                   constraints:
                     primaryKey: true
                     nullable: false
-
               - column:
                   name: user_id
                   type: uuid
                   constraints:
                     nullable: false
-
+                    foreignKeyName: fk_friendships_user
+                    references: users(id)
               - column:
                   name: friend_id
                   type: uuid
                   constraints:
                     nullable: false
-
-        - addForeignKeyConstraint:
-            baseTableName: friendships
-            baseColumnNames: user_id
-            constraintName: fk_friendships_user
-            referencedTableName: users
-            referencedColumnNames: id
-
-        - addForeignKeyConstraint:
-            baseTableName: friendships
-            baseColumnNames: friend_id
-            constraintName: fk_friendships_friend
-            referencedTableName: users
-            referencedColumnNames: id
+                    foreignKeyName: fk_friendships_friend
+                    references: users(id)
 
         - addUniqueConstraint:
             tableName: friendships

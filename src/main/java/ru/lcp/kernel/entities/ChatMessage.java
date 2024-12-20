@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Entity
@@ -12,11 +13,10 @@ public class ChatMessage {
 
     @Id
     @Column(name = "id")
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private UUID id = UUID.randomUUID();
 
     @Column(name = "chat_id", nullable = false)
-    private Long chatId;
+    private UUID chatId;
 
     @ManyToOne
     @JoinColumn(name = "sender_id")

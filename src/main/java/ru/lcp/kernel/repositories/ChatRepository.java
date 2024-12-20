@@ -9,12 +9,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface ChatRepository extends JpaRepository<Chat, Long> {
+public interface ChatRepository extends JpaRepository<Chat, UUID> {
     List<Chat> findByUserId(UUID userId);
 
-    @Query("SELECT c.chatId FROM Chat c WHERE c.user.id IN (:user1Id, :user2Id) " +
-            "GROUP BY c.chatId HAVING COUNT(DISTINCT c.user.id) = 2")
-    Optional<Long> findExistingChatIdBetweenUsers(@Param("user1Id") UUID user1Id, @Param("user2Id") UUID user2Id);
+    @Query("SELECT c.id FROM Chat c WHERE c.user.id IN (:user1Id, :user2Id) " +
+            "GROUP BY c.id HAVING COUNT(DISTINCT c.user.id) = 2")
+    Optional<UUID> findExistingChatIdBetweenUsers(@Param("user1Id") UUID user1Id, @Param("user2Id") UUID user2Id);
 
-    List<Chat> findByChatId(Long chatId);
+    List<Chat> findAllById(UUID id);
 }

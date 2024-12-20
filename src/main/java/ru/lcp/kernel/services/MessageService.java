@@ -3,6 +3,7 @@ package ru.lcp.kernel.services;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import ru.lcp.kernel.dtos.ChatResponse;
 import ru.lcp.kernel.entities.ChatMessage;
 import ru.lcp.kernel.entities.User;
 import ru.lcp.kernel.enums.NotificationPatterns;
+import ru.lcp.kernel.exceptions.ApplicationError;
 import ru.lcp.kernel.repositories.MessageRepository;
 import ru.lcp.kernel.repositories.UserRepository;
 import ru.lcp.kernel.utils.JwtTokenUtils;
@@ -20,9 +22,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -73,7 +73,7 @@ public class MessageService {
     }
 
     @Transactional
-    public ChatResponse saveMessage(Long chatId, ChatRequest chatRequest) {
+    public ChatResponse saveMessage(UUID chatId, ChatRequest chatRequest) {
         String encryptedContent = encrypt(chatRequest.getContent());
 
         String senderUsername = jwtTokenUtils.getUsername(chatRequest.getSender());
@@ -105,7 +105,7 @@ public class MessageService {
         return chatResponse;
     }
 
-    public List<ChatResponse> getMessages(Long chatId) {
+    public List<ChatResponse> getMessages(UUID chatId) {
         List<ChatMessage> messages = messageRepository.findByChatIdOrderByTimestamp(chatId);
         List<ChatResponse> chatResponses = new ArrayList<>();
 
@@ -123,10 +123,14 @@ public class MessageService {
     }
 
     @Transactional
-    public ResponseEntity<?> deleteMessage(Long messageId, Long chatId) {
-        messageRepository.deleteById(messageId);
+    public ResponseEntity<?> deleteMessage(String token, UUID id) {
+        Optional<ChatMessage> message =  messageRepository.findById(id);
 
-        simpMessagingTemplate.convertAndSend("/topic/chat/history/" + chatId, getMessages(chatId));
+        if (message.isEmpty()) {
+            return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "Message not found"), HttpStatus.NOT_FOUND);
+        }
+
+        //simpMessagingTemplate.convertAndSend("/topic/chat/history/" + chatId, "message deleted");
         return ResponseEntity.ok("message deleted successfully");
     }
 }
