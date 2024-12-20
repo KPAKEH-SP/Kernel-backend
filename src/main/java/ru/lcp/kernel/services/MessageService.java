@@ -147,8 +147,5 @@ public class MessageService {
         } catch (UserNotFound e) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
         }
-
-
-
     }
 }
