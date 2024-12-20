@@ -8,11 +8,17 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
+                  type: bigserial
+                  autoIncrement: true
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+              - column:
+                  name: chat_id
                   type: uuid
                   defaultValueComputed: "gen_random_uuid()"
                   constraints:
                     nullable: false
-                    primaryKey: true
               - column:
                   name: user_id
                   type: uuid
