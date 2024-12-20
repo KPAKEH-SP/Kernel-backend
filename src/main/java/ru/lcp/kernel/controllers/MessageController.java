@@ -36,7 +36,7 @@ public class MessageController {
     }
 
     @PostMapping("api/messages/delete")
-    public ResponseEntity<?> deleteMessage(@RequestHeader("X-Token") String token, @RequestBody ChatIdAndMessageId id) {
-        return messageService.deleteMessage(token, id.getMessageId());
+    public ResponseEntity<?> deleteMessage(@RequestHeader("X-Token") String token, @RequestBody ChatIdAndMessageId chatIdAndMessageId) {
+        return messageService.deleteMessage(token, chatIdAndMessageId.getChatId(), chatIdAndMessageId.getMessageId());
     }
 }

@@ -13,9 +13,11 @@ import ru.lcp.kernel.entities.ChatMessage;
 import ru.lcp.kernel.entities.User;
 import ru.lcp.kernel.enums.NotificationPatterns;
 import ru.lcp.kernel.exceptions.ApplicationError;
+import ru.lcp.kernel.exceptions.UserNotFound;
 import ru.lcp.kernel.repositories.MessageRepository;
 import ru.lcp.kernel.repositories.UserRepository;
 import ru.lcp.kernel.utils.JwtTokenUtils;
+import ru.lcp.kernel.utils.UserUtils;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
@@ -34,6 +36,7 @@ public class MessageService {
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final ChatService chatService;
     private final NotificationService notificationService;
+    private final UserUtils userUtils;
     @Value("${jwt.secret-messages}")
     private String secret;
 
@@ -123,14 +126,29 @@ public class MessageService {
     }
 
     @Transactional
-    public ResponseEntity<?> deleteMessage(String token, UUID id) {
-        Optional<ChatMessage> message =  messageRepository.findById(id);
+    public ResponseEntity<?> deleteMessage(String token, UUID chatId, UUID messageId) {
+        Optional<ChatMessage> messageOptional =  messageRepository.findById(messageId);
 
-        if (message.isEmpty()) {
+        if (messageOptional.isEmpty()) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "Message not found"), HttpStatus.NOT_FOUND);
         }
 
-        //simpMessagingTemplate.convertAndSend("/topic/chat/history/" + chatId, "message deleted");
-        return ResponseEntity.ok("message deleted successfully");
+        ChatMessage message = messageOptional.get();
+
+        try {
+            User user = userUtils.getByToken(token);
+            if (message.getSender().getId() == user.getId()) {
+                messageRepository.deleteById(messageId);
+                simpMessagingTemplate.convertAndSend("/topic/chat/history/" + chatId, getMessages(chatId));
+                return ResponseEntity.ok("message deleted successfully");
+            } else {
+                return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "Not enough rights"), HttpStatus.NOT_FOUND);
+            }
+        } catch (UserNotFound e) {
+            return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
+        }
+
+
+
     }
 }
