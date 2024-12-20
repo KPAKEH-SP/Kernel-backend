@@ -13,8 +13,6 @@ import ru.lcp.kernel.enums.NotificationPatterns;
 import ru.lcp.kernel.exceptions.ApplicationError;
 import ru.lcp.kernel.exceptions.UserNotFound;
 import ru.lcp.kernel.repositories.FriendshipRepository;
-import ru.lcp.kernel.repositories.UserRepository;
-import ru.lcp.kernel.utils.JwtTokenUtils;
 import ru.lcp.kernel.utils.PrivateUserConvertor;
 import ru.lcp.kernel.utils.UserUtils;
 
@@ -25,19 +23,17 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class FriendshipService {
-    private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
-    private final JwtTokenUtils jwtTokenUtils;
     private final PrivateUserConvertor privateUserConvertor;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final UserUtils userUtils;
     private final NotificationService notificationService;
 
     @Transactional
-    public ResponseEntity<?> addFriend(TokenAndFriendUsername tokenAndFriendUsername) {
+    public ResponseEntity<?> addFriend(String token, String username) {
         try {
-            User user = userUtils.getByToken(tokenAndFriendUsername.getToken());
-            User friend = userUtils.getByUsername(tokenAndFriendUsername.getFriendUsername());
+            User user = userUtils.getByToken(token);
+            User friend = userUtils.getByUsername(username);
 
             if (user.getId().equals(friend.getId())) {
                 return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "You can't add yourself as a friend"), HttpStatus.CONFLICT);
@@ -54,71 +50,61 @@ public class FriendshipService {
             friendship.setStatus("PENDING");
             friendshipRepository.save(friendship);
 
-            GetFriendRequest getFriendRequest = new GetFriendRequest();
-            getFriendRequest.setToken(tokenAndFriendUsername.getToken());
-
             simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "new friend request");
             notificationService.sendNotification(user, NotificationPatterns.NEW_FRIEND_REQUEST, friend);
 
-            return ResponseEntity.ok(getFriends(getFriendRequest));
+            return getFriendsByToken(token);
         } catch (UserNotFound userNotFound) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
         }
     }
 
-    public ResponseEntity<?> getFriends(GetFriendRequest getFriendRequest) {
-        String username = jwtTokenUtils.getUsername(getFriendRequest.getToken());
+    public ResponseEntity<?> getFriendsByToken(String token) {
+        try {
+            User user = userUtils.getByToken(token);
 
-        return getFriends(username);
-    }
+            List<Friendship> friendsByUserId = friendshipRepository.findAllByUserId(user.getId());
 
-    public ResponseEntity<?> getFriends(String username) {
-        Optional<User> userOpt = userRepository.findByUsername(username);
+            List<Friendship> friendsByFriendId = friendshipRepository.findAllByFriendId(user.getId());
 
-        if (userOpt.isEmpty()) {
+            List<PublicFriendship> publicFriends = new ArrayList<>();
+
+            for (Friendship friendship : friendsByFriendId) {
+                PublicFriendship publicFriendship = new PublicFriendship();
+                UserPublicInfo publicFriend = privateUserConvertor.convertUserPublicInfo(friendship.getUser());
+                publicFriendship.setUser(publicFriend);
+                publicFriendship.setStatus(friendship.getStatus());
+                if (friendship.getStatus().equals("PENDING")) {
+                    UserPublicInfo pendingFrom = privateUserConvertor.convertUserPublicInfo(friendship.getUser());
+                    publicFriendship.setPendingFrom(pendingFrom);
+                }
+                publicFriends.add(publicFriendship);
+            }
+
+            for (Friendship friendship : friendsByUserId) {
+                PublicFriendship publicFriendship = new PublicFriendship();
+                UserPublicInfo publicFriend = privateUserConvertor.convertUserPublicInfo(friendship.getFriend());
+                publicFriendship.setUser(publicFriend);
+                publicFriendship.setStatus(friendship.getStatus());
+                if (friendship.getStatus().equals("PENDING")) {
+                    UserPublicInfo pendingFrom = privateUserConvertor.convertUserPublicInfo(friendship.getUser());
+                    publicFriendship.setPendingFrom(pendingFrom);
+                }
+                publicFriends.add(publicFriendship);
+            }
+
+            return ResponseEntity.ok(publicFriends);
+        } catch (UserNotFound e) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
         }
-
-        User user = userOpt.get();
-
-        List<Friendship> friendsByUserId = friendshipRepository.findAllByUserId(user.getId());
-
-        List<Friendship> friendsByFriendId = friendshipRepository.findAllByFriendId(user.getId());
-
-        List<PublicFriendship> publicFriends = new ArrayList<>();
-
-        for (Friendship friendship : friendsByFriendId) {
-            PublicFriendship publicFriendship = new PublicFriendship();
-            UserPublicInfo publicFriend = privateUserConvertor.convertUserPublicInfo(friendship.getUser());
-            publicFriendship.setUser(publicFriend);
-            publicFriendship.setStatus(friendship.getStatus());
-            if (friendship.getStatus().equals("PENDING")) {
-                UserPublicInfo pendingFrom = privateUserConvertor.convertUserPublicInfo(friendship.getUser());
-                publicFriendship.setPendingFrom(pendingFrom);
-            }
-            publicFriends.add(publicFriendship);
-        }
-
-        for (Friendship friendship : friendsByUserId) {
-            PublicFriendship publicFriendship = new PublicFriendship();
-            UserPublicInfo publicFriend = privateUserConvertor.convertUserPublicInfo(friendship.getFriend());
-            publicFriendship.setUser(publicFriend);
-            publicFriendship.setStatus(friendship.getStatus());
-            if (friendship.getStatus().equals("PENDING")) {
-                UserPublicInfo pendingFrom = privateUserConvertor.convertUserPublicInfo(friendship.getUser());
-                publicFriendship.setPendingFrom(pendingFrom);
-            }
-            publicFriends.add(publicFriendship);
-        }
-
-        return ResponseEntity.ok(publicFriends);
     }
 
     @Transactional
-    public ResponseEntity<?> removeFriend(TokenAndFriendUsername tokenAndFriendUsername) {
+    public ResponseEntity<?> removeFriend(String token, String username) {
         try {
-            User user = userUtils.getByToken(tokenAndFriendUsername.getToken());
-            User friend = userUtils.getByUsername(tokenAndFriendUsername.getFriendUsername());
+            System.out.println(username);
+            User user = userUtils.getByToken(token);
+            User friend = userUtils.getByUsername(username);
 
             Optional<Friendship> friendshipAsUserOpt = friendshipRepository.findByUserIdAndFriendId(user.getId(), friend.getId());
             Optional<Friendship> friendshipAsFriendOpt = friendshipRepository.findByUserIdAndFriendId(friend.getId(), user.getId());
@@ -127,18 +113,14 @@ public class FriendshipService {
                 if (friendshipAsFriendOpt.isPresent()) {
                     friendshipRepository.delete(friendshipAsFriendOpt.get());
 
-                    GetFriendRequest getFriendRequest = new GetFriendRequest();
-                    getFriendRequest.setToken(tokenAndFriendUsername.getToken());
-                    return ResponseEntity.ok(getFriends(getFriendRequest));
+                    return getFriendsByToken(token);
                 }
                 return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User is not your friend"), HttpStatus.CONFLICT);
             } else {
                 friendshipRepository.delete(friendshipAsUserOpt.get());
 
-                GetFriendRequest getFriendRequest = new GetFriendRequest();
-                getFriendRequest.setToken(tokenAndFriendUsername.getToken());
                 simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "friend/request removed");
-                return ResponseEntity.ok(getFriends(getFriendRequest));
+                return getFriendsByToken(token);
             }
         } catch (UserNotFound e) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
@@ -146,10 +128,10 @@ public class FriendshipService {
     }
 
     @Transactional
-    public ResponseEntity<?> acceptRequest(TokenAndFriendUsername tokenAndFriendUsername) {
+    public ResponseEntity<?> acceptRequest(String token, String username) {
         try {
-            User user = userUtils.getByToken(tokenAndFriendUsername.getToken());
-            User friend = userUtils.getByUsername(tokenAndFriendUsername.getFriendUsername());
+            User user = userUtils.getByToken(token);
+            User friend = userUtils.getByUsername(username);
 
             Optional<Friendship> friendship = friendshipRepository.findByUserIdAndFriendId(friend.getId(), user.getId());
 
@@ -160,10 +142,8 @@ public class FriendshipService {
             friendship.get().setStatus("ACCEPTED");
             friendshipRepository.save(friendship.get());
 
-            GetFriendRequest getFriendRequest = new GetFriendRequest();
-            getFriendRequest.setToken(tokenAndFriendUsername.getToken());
             simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "friend request accepted");
-            return ResponseEntity.ok(getFriends(getFriendRequest));
+            return getFriendsByToken(token);
         } catch (UserNotFound e) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
         }

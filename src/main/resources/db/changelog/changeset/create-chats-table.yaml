@@ -8,26 +8,15 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: bigint
-                  autoIncrement: true
+                  type: uuid
+                  defaultValueComputed: "gen_random_uuid()"
                   constraints:
                     nullable: false
-                    unique: true
                     primaryKey: true
-              - column:
-                  name: chat_id
-                  type: bigint
-                  constraints:
-                    nullable: false
               - column:
                   name: user_id
                   type: uuid
                   constraints:
                     nullable: false
-
-        - addForeignKeyConstraint:
-            baseTableName: chats
-            baseColumnNames: user_id
-            constraintName: fk_chat_user
-            referencedTableName: users
-            referencedColumnNames: id
+                    foreignKeyName: fk_chat_user
+                    references: users(id)

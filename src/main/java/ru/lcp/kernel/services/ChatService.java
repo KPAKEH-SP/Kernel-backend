@@ -6,7 +6,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.lcp.kernel.dtos.PublicChat;
-import ru.lcp.kernel.dtos.TokenAndFriendUsername;
 import ru.lcp.kernel.dtos.UserPublicInfo;
 import ru.lcp.kernel.entities.Chat;
 import ru.lcp.kernel.entities.User;
@@ -31,25 +30,25 @@ public class ChatService {
     private final UserUtils userUtils;
 
     @Transactional
-    public ResponseEntity<?> createChatWithFriend(TokenAndFriendUsername tokenAndFriendUsername) {
+    public ResponseEntity<?> createChatWithFriend(String token, String username) {
         try {
-            User user = userUtils.getByToken(tokenAndFriendUsername.getToken());
-            User friend = userUtils.getByUsername(tokenAndFriendUsername.getFriendUsername());
+            User user = userUtils.getByToken(token);
+            User friend = userUtils.getByUsername(username);
 
-            Optional<Long> existingChatId = chatRepository.findExistingChatIdBetweenUsers(user.getId(), friend.getId());
+            Optional<UUID> existingChatId = chatRepository.findExistingChatIdBetweenUsers(user.getId(), friend.getId());
 
             if (existingChatId.isPresent()) {
                 return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), existingChatId.get().toString()), HttpStatus.CONFLICT);
             }
 
-            Long chatId = System.currentTimeMillis();
+            UUID chatId = UUID.randomUUID();
 
             Chat chatForUser = new Chat();
-            chatForUser.setChatId(chatId);
+            chatForUser.setId(chatId);
             chatForUser.setUser(user);
 
             Chat chatForFriend = new Chat();
-            chatForFriend.setChatId(chatId);
+            chatForFriend.setId(chatId);
             chatForFriend.setUser(friend);
 
             chatRepository.save(chatForUser);
@@ -66,8 +65,8 @@ public class ChatService {
         List<PublicChat> publicChats = new ArrayList<>();
 
         for(Chat chat : chats) {
-            Long chatId = chat.getChatId();
-            List<Chat> chatUsers = chatRepository.findByChatId(chatId);
+            UUID chatId = chat.getId();
+            List<Chat> chatUsers = chatRepository.findAllById(chatId);
 
             PublicChat publicChat = new PublicChat();
             publicChat.setChatId(chatId);
@@ -98,7 +97,7 @@ public class ChatService {
         return getChatsForUserById(user.getId());
     }
 
-    public List<User> getChatUsers(Long chatId) {
-        return chatRepository.findByChatId(chatId).stream().map(Chat::getUser).collect(Collectors.toList());
+    public List<User> getChatUsers(UUID chatId) {
+        return chatRepository.findAllById(chatId).stream().map(Chat::getUser).collect(Collectors.toList());
     }
 }
