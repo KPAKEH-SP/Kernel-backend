@@ -18,8 +18,6 @@ databaseChangeLog:
                   type: uuid
                   constraints:
                     nullable: false
-                    foreignKeyName: fk_chat
-                    references: chats(chat_id)
               - column:
                   name: sender_id
                   type: uuid
