@@ -1,28 +1,29 @@
 databaseChangeLog:
   - changeSet:
-      id: create-chats
+      id: create-personal-chats
       author: LCP
       changes:
         - createTable:
-            tableName: chats
+            tableName: personal_chats
             columns:
               - column:
                   name: id
-                  type: bigserial
-                  autoIncrement: true
-                  constraints:
-                    nullable: false
-                    primaryKey: true
-              - column:
-                  name: chat_id
                   type: uuid
                   defaultValueComputed: "gen_random_uuid()"
                   constraints:
+                    primaryKey: true
                     nullable: false
               - column:
-                  name: user_id
+                  name: first_user_id
                   type: uuid
                   constraints:
                     nullable: false
-                    foreignKeyName: fk_chat_user
+                    foreignKeyName: fk_personal_chat_first_user
+                    references: users(id)
+              - column:
+                  name: second_user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_personal_chat_second_user
                     references: users(id)
