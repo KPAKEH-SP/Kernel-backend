@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import ru.lcp.kernel.dtos.ChatRequest;
 import ru.lcp.kernel.dtos.ChatResponse;
 import ru.lcp.kernel.entities.ChatMessage;
+import ru.lcp.kernel.entities.PersonalChat;
 import ru.lcp.kernel.entities.User;
 import ru.lcp.kernel.enums.NotificationPatterns;
 import ru.lcp.kernel.exceptions.ApplicationError;
@@ -34,7 +35,7 @@ public class MessageService {
     private final JwtTokenUtils jwtTokenUtils;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate simpMessagingTemplate;
-    private final ChatService chatService;
+    private final PersonalChatService chatService;
     private final NotificationService notificationService;
     private final UserUtils userUtils;
     @Value("${jwt.secret-messages}")
@@ -97,12 +98,12 @@ public class MessageService {
         chatResponse.setContent(decrypt(encryptedContent));
         chatResponse.setMessageId(message.getId());
 
-        List<User> users = chatService.getChatUsers(chatId);
+        PersonalChat personalChat = chatService.getPersonalChat(chatId);
 
-        for (User user : users) {
-            if (user != sender) {
-                notificationService.sendNotification(sender, NotificationPatterns.NEW_MESSAGE, user);
-            }
+        if (personalChat.getFirstUser() != sender) {
+            notificationService.sendNotification(sender, NotificationPatterns.NEW_MESSAGE, personalChat.getFirstUser());
+        } else {
+            notificationService.sendNotification(sender, NotificationPatterns.NEW_MESSAGE, personalChat.getSecondUser());
         }
 
         return chatResponse;
