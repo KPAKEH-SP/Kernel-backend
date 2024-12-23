@@ -37,10 +37,15 @@ public class PersonalChatService {
             User user = userUtils.getByToken(token);
             User friend = userUtils.getByUsername(username);
 
-            Optional<PersonalChat> existingChatId = personalChatRepository.findPersonalChatByFirstUserAndSecondUser(user, friend);
+            List<PersonalChat> personalChats = personalChatRepository.findByFirstUser(user);
+            personalChats.addAll(personalChatRepository.findBySecondUser(user));
 
-            if (existingChatId.isPresent()) {
-                return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), existingChatId.get().toString()), HttpStatus.CONFLICT);
+            List<PersonalChat> allChats = personalChats.stream().distinct().toList();
+
+            for (PersonalChat personalChat : allChats) {
+                if (personalChat.getFirstUser().equals(friend) || personalChat.getSecondUser().equals(friend)) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body("This chat already exist");
+                }
             }
 
             PersonalChat newPersonalChat = new PersonalChat();
