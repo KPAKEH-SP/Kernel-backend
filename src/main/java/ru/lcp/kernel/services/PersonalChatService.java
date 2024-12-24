@@ -44,7 +44,7 @@ public class PersonalChatService {
 
             for (PersonalChat personalChat : allChats) {
                 if (personalChat.getFirstUser().equals(friend) || personalChat.getSecondUser().equals(friend)) {
-                    return ResponseEntity.status(HttpStatus.CONFLICT).body("This chat already exist");
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body(personalChat.getChatId());
                 }
             }
 
