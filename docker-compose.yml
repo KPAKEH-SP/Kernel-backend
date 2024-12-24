@@ -7,8 +7,8 @@ services:
     ports:
       - 5432:5432
     environment:
-      - 'POSTGRES_USER=postgres'
-      - 'POSTGRES_PASSWORD=123456'
+      - 'POSTGRES_USER=afc848c316af1a89d49826c5ae9d00ed769415f3'
+      - 'POSTGRES_PASSWORD=7c4a8d09ca3762af61e59520943dc26494f8941b'
       - 'POSTGRES_DB=kernel-users'
     networks:
       - kernel-network
@@ -20,8 +20,8 @@ services:
       - 8080:8080
     environment:
       - 'SPRING_DATASOURCE_URL=jdbc:postgresql://kernel-postgres:5432/kernel-users'
-      - 'SPRING_DATASOURCE_USERNAME=postgres'
-      - 'SPRING_DATASOURCE_PASSWORD=123456'
+      - 'SPRING_DATASOURCE_USERNAME=afc848c316af1a89d49826c5ae9d00ed769415f3'
+      - 'SPRING_DATASOURCE_PASSWORD=7c4a8d09ca3762af61e59520943dc26494f8941b'
     networks:
       - kernel-network
 
