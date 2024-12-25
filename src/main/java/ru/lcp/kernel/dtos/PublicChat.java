@@ -7,6 +7,6 @@ import java.util.UUID;
 
 @Data
 public class PublicChat {
-    private List<UserPublicInfo> users;
+    private List<PublicUser> users;
     private UUID chatId;
 }

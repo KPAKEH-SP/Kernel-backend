@@ -13,10 +13,8 @@ import ru.lcp.kernel.enums.NotificationPatterns;
 import ru.lcp.kernel.exceptions.ApplicationError;
 import ru.lcp.kernel.exceptions.UserNotFound;
 import ru.lcp.kernel.repositories.FriendshipRepository;
-import ru.lcp.kernel.utils.PrivateUserConvertor;
 import ru.lcp.kernel.utils.UserUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,7 +22,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class FriendshipService {
     private final FriendshipRepository friendshipRepository;
-    private final PrivateUserConvertor privateUserConvertor;
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final UserUtils userUtils;
     private final NotificationService notificationService;
@@ -50,59 +47,35 @@ public class FriendshipService {
             friendship.setStatus("PENDING");
             friendshipRepository.save(friendship);
 
-            simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "new friend request");
+            simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), getPublicFriendsForUser(friend));
             notificationService.sendNotification(user, NotificationPatterns.NEW_FRIEND_REQUEST, friend);
 
-            return getFriendsByToken(token);
+            return getPublicFriendsByToken(token);
         } catch (UserNotFound userNotFound) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
         }
     }
 
-    public ResponseEntity<?> getFriendsByToken(String token) {
+    public ResponseEntity<?> getPublicFriendsByToken(String token) {
         try {
             User user = userUtils.getByToken(token);
 
-            List<Friendship> friendsByUserId = friendshipRepository.findAllByUserId(user.getId());
-
-            List<Friendship> friendsByFriendId = friendshipRepository.findAllByFriendId(user.getId());
-
-            List<PublicFriendship> publicFriends = new ArrayList<>();
-
-            for (Friendship friendship : friendsByFriendId) {
-                PublicFriendship publicFriendship = new PublicFriendship();
-                UserPublicInfo publicFriend = privateUserConvertor.convertUserPublicInfo(friendship.getUser());
-                publicFriendship.setUser(publicFriend);
-                publicFriendship.setStatus(friendship.getStatus());
-                if (friendship.getStatus().equals("PENDING")) {
-                    UserPublicInfo pendingFrom = privateUserConvertor.convertUserPublicInfo(friendship.getUser());
-                    publicFriendship.setPendingFrom(pendingFrom);
-                }
-                publicFriends.add(publicFriendship);
-            }
-
-            for (Friendship friendship : friendsByUserId) {
-                PublicFriendship publicFriendship = new PublicFriendship();
-                UserPublicInfo publicFriend = privateUserConvertor.convertUserPublicInfo(friendship.getFriend());
-                publicFriendship.setUser(publicFriend);
-                publicFriendship.setStatus(friendship.getStatus());
-                if (friendship.getStatus().equals("PENDING")) {
-                    UserPublicInfo pendingFrom = privateUserConvertor.convertUserPublicInfo(friendship.getUser());
-                    publicFriendship.setPendingFrom(pendingFrom);
-                }
-                publicFriends.add(publicFriendship);
-            }
-
-            return ResponseEntity.ok(publicFriends);
+            return ResponseEntity.ok(getPublicFriendsForUser(user));
         } catch (UserNotFound e) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
         }
     }
 
+    private List<PublicFriendship> getPublicFriendsForUser(User user) {
+        List<Friendship> friends = friendshipRepository.findAllByUserId(user.getId());
+        friends.addAll(friendshipRepository.findAllByFriendId(user.getId()));
+
+        return friends.stream().map(PublicFriendship::new).toList();
+    }
+
     @Transactional
     public ResponseEntity<?> removeFriend(String token, String username) {
         try {
-            System.out.println(username);
             User user = userUtils.getByToken(token);
             User friend = userUtils.getByUsername(username);
 
@@ -113,14 +86,14 @@ public class FriendshipService {
                 if (friendshipAsFriendOpt.isPresent()) {
                     friendshipRepository.delete(friendshipAsFriendOpt.get());
 
-                    return getFriendsByToken(token);
+                    return getPublicFriendsByToken(token);
                 }
                 return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User is not your friend"), HttpStatus.CONFLICT);
             } else {
                 friendshipRepository.delete(friendshipAsUserOpt.get());
 
-                simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "friend/request removed");
-                return getFriendsByToken(token);
+                simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), getPublicFriendsForUser(friend));
+                return getPublicFriendsByToken(token);
             }
         } catch (UserNotFound e) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
@@ -142,8 +115,8 @@ public class FriendshipService {
             friendship.get().setStatus("ACCEPTED");
             friendshipRepository.save(friendship.get());
 
-            simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), "friend request accepted");
-            return getFriendsByToken(token);
+            simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), getPublicFriendsForUser(friend));
+            return getPublicFriendsByToken(token);
         } catch (UserNotFound e) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
         }

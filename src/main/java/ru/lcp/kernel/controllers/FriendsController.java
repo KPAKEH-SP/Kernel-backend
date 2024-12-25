@@ -19,7 +19,7 @@ public class FriendsController {
 
     @GetMapping("/get")
     public ResponseEntity<?> getFriends(@RequestHeader("X-Token") String token) {
-        return friendshipService.getFriendsByToken(token);
+        return friendshipService.getPublicFriendsByToken(token);
     }
 
     @PostMapping("/remove")

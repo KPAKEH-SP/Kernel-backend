@@ -6,14 +6,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.lcp.kernel.dtos.PublicChat;
-import ru.lcp.kernel.dtos.UserPublicInfo;
+import ru.lcp.kernel.dtos.PublicUser;
 import ru.lcp.kernel.entities.PersonalChat;
 import ru.lcp.kernel.entities.User;
 import ru.lcp.kernel.exceptions.ApplicationError;
 import ru.lcp.kernel.exceptions.UserNotFound;
 import ru.lcp.kernel.repositories.PersonalChatRepository;
 import ru.lcp.kernel.utils.JwtTokenUtils;
-import ru.lcp.kernel.utils.PrivateUserConvertor;
 import ru.lcp.kernel.utils.UserUtils;
 
 import java.util.ArrayList;
@@ -29,7 +28,6 @@ public class PersonalChatService {
     private final JwtTokenUtils jwtTokenUtils;
     private final UserService userService;
     private final UserUtils userUtils;
-    private final PrivateUserConvertor privateUserConvertor;
 
     @Transactional
     public ResponseEntity<?> createPersonalChat(String token, String username) {
@@ -67,9 +65,9 @@ public class PersonalChatService {
         List<PersonalChat> allChats = personalChats.stream().distinct().toList();
 
         List<PublicChat> publicPersonalChats = allChats.stream().map(personalChat -> {
-            List<UserPublicInfo> chatUsers = new ArrayList<>();
-            chatUsers.add(privateUserConvertor.convertUserPublicInfo(personalChat.getFirstUser()));
-            chatUsers.add(privateUserConvertor.convertUserPublicInfo(personalChat.getSecondUser()));
+            List<PublicUser> chatUsers = new ArrayList<>();
+            chatUsers.add(new PublicUser(personalChat.getFirstUser()));
+            chatUsers.add(new PublicUser(personalChat.getSecondUser()));
 
             PublicChat publicPersonalChat = new PublicChat();
             publicPersonalChat.setUsers(chatUsers);
