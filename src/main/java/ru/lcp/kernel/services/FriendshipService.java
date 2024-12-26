@@ -6,15 +6,20 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.lcp.kernel.dtos.*;
+import ru.lcp.kernel.dtos.PublicFriendship;
+import ru.lcp.kernel.dtos.webSocketV2.FriendPayload;
 import ru.lcp.kernel.entities.Friendship;
 import ru.lcp.kernel.entities.User;
 import ru.lcp.kernel.enums.NotificationPatterns;
+import ru.lcp.kernel.enums.WebSocketMessagesTypes;
 import ru.lcp.kernel.exceptions.ApplicationError;
 import ru.lcp.kernel.exceptions.UserNotFound;
 import ru.lcp.kernel.repositories.FriendshipRepository;
 import ru.lcp.kernel.utils.UserUtils;
+import ru.lcp.kernel.utils.WsMessage;
+import ru.lcp.kernel.utils.WsSendMessageUtil;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +30,7 @@ public class FriendshipService {
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final UserUtils userUtils;
     private final NotificationService notificationService;
+    private final WsSendMessageUtil wsSendMessageUtil;
 
     @Transactional
     public ResponseEntity<?> addFriend(String token, String username) {
@@ -47,12 +53,20 @@ public class FriendshipService {
             friendship.setStatus("PENDING");
             friendshipRepository.save(friendship);
 
-            simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), getPublicFriendsForUser(friend));
+
+            FriendPayload payload = new FriendPayload();
+            payload.setFriends(getPublicFriendsForUser(friend));
+            WsMessage<?> message = new WsMessage<>(WebSocketMessagesTypes.NEW_FRIEND_REQUEST, payload);
+            wsSendMessageUtil.sendMessageToUser(friend, message);
+
+            //simpMessagingTemplate.convertAndSend("/topic/requests/friend/" + friend.getUsername(), getPublicFriendsForUser(friend));
             notificationService.sendNotification(user, NotificationPatterns.NEW_FRIEND_REQUEST, friend);
 
             return getPublicFriendsByToken(token);
         } catch (UserNotFound userNotFound) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "User not found"), HttpStatus.NOT_FOUND);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

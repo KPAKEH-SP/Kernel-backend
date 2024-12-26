@@ -1,8 +1,10 @@
 package ru.lcp.kernel.dtos;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data
-public class GetFriendRequest {
+@AllArgsConstructor
+public class Token {
     private String token;
 }

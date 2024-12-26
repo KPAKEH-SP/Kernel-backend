@@ -1,36 +1,44 @@
 package ru.lcp.kernel.handlers;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.WebSocketHandler;
-import org.springframework.web.socket.WebSocketMessage;
-import org.springframework.web.socket.WebSocketSession;
-import ru.lcp.kernel.entities.User;
-import ru.lcp.kernel.utils.UserUtils;
-import ru.lcp.kernel.utils.UsersConnections;
+import org.springframework.web.socket.*;
+import ru.lcp.kernel.dtos.Token;
+import ru.lcp.kernel.dtos.webSocketV2.FriendPayload;
+import ru.lcp.kernel.utils.WsMessage;
+import ru.lcp.kernel.enums.WebSocketMessagesTypes;
 
 @Component
 @RequiredArgsConstructor
 public class WsHandler implements WebSocketHandler {
-    private final UserUtils userUtils;
-    private final UsersConnections usersConnections;
+
+    private final WsEventHandler wsEventHandler;
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        String token = getTokenFromSession(session);
-        if (token == null || token.isEmpty()) {
-            System.out.println("Token is missing");
-            session.close();
-        } else {
-            User user = userUtils.getByToken(token);
-            usersConnections.addConnection(user, session);
-        }
+    public void afterConnectionEstablished(WebSocketSession session) {
     }
 
     @Override
-    public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) {
-        System.out.println(message.getPayload());
+    public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
+        if (message instanceof TextMessage textMessage) {
+            String payload = textMessage.getPayload();
+            Class<?> dataType = determineDataType(payload);
+            WsMessage<?> wsMessage = WsMessage.fromJson(payload, dataType);
+            wsEventHandler.handleMessage(session, wsMessage);
+        }
+    }
+
+    private Class<?> determineDataType(String payload) {
+        Gson gson = new Gson();
+        JsonObject jsonObject = gson.fromJson(payload, JsonObject.class);
+        String type = jsonObject.get("type").getAsString();
+
+        return switch (WebSocketMessagesTypes.valueOf(type)) {
+            case CONNECT -> Token.class;
+            case NEW_FRIEND_REQUEST -> FriendPayload.class;
+        };
     }
 
     @Override
@@ -46,18 +54,5 @@ public class WsHandler implements WebSocketHandler {
     @Override
     public boolean supportsPartialMessages() {
         return false;
-    }
-
-    private String getTokenFromSession(WebSocketSession session) {
-        String query = session.getUri().getQuery();
-        if (query != null) {
-            for (String param : query.split("&")) {
-                String[] keyValue = param.split("=");
-                if (keyValue.length == 2 && "token".equals(keyValue[0])) {
-                    return keyValue[1];
-                }
-            }
-        }
-        return null;
     }
 }
