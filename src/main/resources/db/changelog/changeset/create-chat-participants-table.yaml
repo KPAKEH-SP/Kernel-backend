@@ -1,10 +1,10 @@
 databaseChangeLog:
   - changeSet:
-      id: create-messages
+      id: create-chat-participants
       author: LCP
       changes:
         - createTable:
-            tableName: messages
+            tableName: chat_participants
             columns:
               - column:
                   name: id
@@ -21,19 +21,19 @@ databaseChangeLog:
                     foreignKeyName: fk_chat
                     references: chats(id)
               - column:
-                  name: sender_id
+                  name: user_id
                   type: uuid
                   constraints:
                     nullable: false
-                    foreignKeyName: fk_sender
+                    foreignKeyName: fk_user
                     references: users(id)
               - column:
-                  name: content
-                  type: text
+                  name: role
+                  type: varchar
                   constraints:
                     nullable: false
               - column:
-                  name: created_at
+                  name: joined_at
                   type: timestamp
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:

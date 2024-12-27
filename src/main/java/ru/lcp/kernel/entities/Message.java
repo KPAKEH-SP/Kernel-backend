@@ -9,22 +9,23 @@ import java.util.UUID;
 @Data
 @Entity
 @Table(name = "messages")
-public class ChatMessage {
+public class Message {
 
     @Id
     @Column(name = "id")
     private UUID id = UUID.randomUUID();
 
-    @Column(name = "chat_id", nullable = false)
-    private UUID chatId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "chat_id")
+    private Chat chat;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sender_id")
     private User sender;
 
     @Column(name = "content", nullable = false)
     private String content;
 
-    @Column(name = "timestamp", nullable = false)
-    private LocalDateTime timestamp = LocalDateTime.now();
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
 }
