@@ -4,21 +4,21 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.lcp.kernel.dtos.Username;
-import ru.lcp.kernel.services.PersonalChatService;
+import ru.lcp.kernel.services.ChatService;
 
 @RestController()
 @RequiredArgsConstructor
-@RequestMapping("/api/chats/personal")
+@RequestMapping("/api/chats")
 public class PersonalChatController {
-    private final PersonalChatService chatService;
+    private final ChatService chatService;
 
     @PostMapping("/create")
-    public ResponseEntity<?> createPersonalChat(@RequestHeader("X-Token") String token, @RequestBody Username username) {
-        return chatService.createPersonalChat(token, username.getUsername());
+    public ResponseEntity<?> createChat(@RequestHeader("X-Token") String token, @RequestBody Username username) {
+        return chatService.createChat(token, username.getUsername());
     }
 
     @GetMapping("/get")
-    public ResponseEntity<?> getAllPersonalChats(@RequestHeader("X-Token") String token) {
-        return chatService.getPersonalChatsForUserByToken(token);
+    public ResponseEntity<?> getAllChats(@RequestHeader("X-Token") String token) {
+        return chatService.getChatsForUserByToken(token);
     }
 }

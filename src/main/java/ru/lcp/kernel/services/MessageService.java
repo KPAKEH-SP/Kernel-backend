@@ -2,28 +2,23 @@ package ru.lcp.kernel.services;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import ru.lcp.kernel.dtos.ChatRequest;
 import ru.lcp.kernel.dtos.ChatResponse;
-import ru.lcp.kernel.entities.ChatMessage;
-import ru.lcp.kernel.entities.PersonalChat;
+import ru.lcp.kernel.entities.Message;
+import ru.lcp.kernel.entities.Chat;
 import ru.lcp.kernel.entities.User;
 import ru.lcp.kernel.enums.NotificationPatterns;
 import ru.lcp.kernel.exceptions.ApplicationError;
+import ru.lcp.kernel.exceptions.ChatNotFound;
 import ru.lcp.kernel.exceptions.UserNotFound;
 import ru.lcp.kernel.repositories.MessageRepository;
-import ru.lcp.kernel.repositories.UserRepository;
-import ru.lcp.kernel.utils.JwtTokenUtils;
+import ru.lcp.kernel.utils.MessageCryptographer;
 import ru.lcp.kernel.utils.UserUtils;
 
-import javax.crypto.Cipher;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -32,93 +27,70 @@ import java.util.*;
 public class MessageService {
 
     private final MessageRepository messageRepository;
-    private final JwtTokenUtils jwtTokenUtils;
-    private final UserRepository userRepository;
     private final SimpMessagingTemplate simpMessagingTemplate;
-    private final PersonalChatService chatService;
+    private final ChatService chatService;
     private final NotificationService notificationService;
     private final UserUtils userUtils;
-    @Value("${jwt.secret-messages}")
-    private String secret;
+    private final MessageCryptographer messageCryptographer;
 
-    private SecretKeySpec generateKey() {
-        try {
-            byte[] key = secret.getBytes(StandardCharsets.UTF_8);
-            MessageDigest sha = MessageDigest.getInstance("SHA-256");
-            key = sha.digest(key); // Преобразуем ключ в 256 бит
-            return new SecretKeySpec(key, "AES");
-        } catch (Exception e) {
-            throw new RuntimeException("Ошибка генерации ключа", e);
-        }
-    }
-
-    public String encrypt(String message) {
-        try {
-            SecretKeySpec keySpec = generateKey();
-            Cipher cipher = Cipher.getInstance("AES");
-            cipher.init(Cipher.ENCRYPT_MODE, keySpec);
-            byte[] encryptedBytes = cipher.doFinal(message.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(encryptedBytes);
-        } catch (Exception e) {
-            throw new RuntimeException("Ошибка шифрования", e);
-        }
-    }
-
-    public String decrypt(String encryptedMessage) {
-        try {
-            SecretKeySpec keySpec = generateKey();
-            Cipher cipher = Cipher.getInstance("AES");
-            cipher.init(Cipher.DECRYPT_MODE, keySpec);
-            byte[] decodedBytes = Base64.getDecoder().decode(encryptedMessage);
-            return new String(cipher.doFinal(decodedBytes), StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            throw new RuntimeException("Ошибка расшифровки", e);
-        }
-    }
 
     @Transactional
     public ChatResponse saveMessage(UUID chatId, ChatRequest chatRequest) {
-        String encryptedContent = encrypt(chatRequest.getContent());
+        String encryptedContent = messageCryptographer.encrypt(chatRequest.getContent());
 
-        String senderUsername = jwtTokenUtils.getUsername(chatRequest.getSender());
-        User sender = userRepository.findByUsername(senderUsername).get();
+        User sender;
+        Chat chat;
 
-        ChatMessage chatMessage = new ChatMessage();
-        chatMessage.setChatId(chatId);
-        chatMessage.setContent(encryptedContent);
-        chatMessage.setSender(sender);
+        try {
+            sender = userUtils.getByToken(chatRequest.getToken());
+            chat = chatService.getChatById(chatId);
+        } catch (UserNotFound | ChatNotFound e) {
+            throw new RuntimeException(e);
+        }
 
-        ChatMessage message = messageRepository.save(chatMessage);
+        Message message = new Message();
+
+        message.setSender(sender);
+        message.setContent(encryptedContent);
+        message.setChat(chat);
+
+        message = messageRepository.save(message);
+
+        chat.getParticipants().forEach(chatParticipant -> {
+            if (chatParticipant.getUser() != sender) {
+                notificationService.sendNotification(sender, NotificationPatterns.NEW_MESSAGE, chatParticipant.getUser());
+            }
+        });
 
         ChatResponse chatResponse = new ChatResponse();
         chatResponse.setChatId(chatId);
         chatResponse.setSender(sender.getUsername());
-        String timestamp = chatMessage.getTimestamp().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String timestamp = message.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         chatResponse.setTimestamp(timestamp);
-        chatResponse.setContent(decrypt(encryptedContent));
+        chatResponse.setContent(messageCryptographer.decrypt(encryptedContent));
         chatResponse.setMessageId(message.getId());
-
-        PersonalChat personalChat = chatService.getPersonalChat(chatId);
-
-        if (personalChat.getFirstUser() != sender) {
-            notificationService.sendNotification(sender, NotificationPatterns.NEW_MESSAGE, personalChat.getFirstUser());
-        } else {
-            notificationService.sendNotification(sender, NotificationPatterns.NEW_MESSAGE, personalChat.getSecondUser());
-        }
 
         return chatResponse;
     }
 
     public List<ChatResponse> getMessages(UUID chatId) {
-        List<ChatMessage> messages = messageRepository.findByChatIdOrderByTimestamp(chatId);
+        Chat chat;
+
+        try {
+            chat = chatService.getChatById(chatId);
+        } catch (ChatNotFound e) {
+            throw new RuntimeException(e);
+        }
+
+        List<Message> messages = messageRepository.findByChatOrderByCreatedAt(chat);
         List<ChatResponse> chatResponses = new ArrayList<>();
 
-        for (ChatMessage message : messages) {
+        for (Message message : messages) {
             ChatResponse chatResponse = new ChatResponse();
-            chatResponse.setChatId(message.getChatId());
+            chatResponse.setChatId(message.getChat().getId());
             chatResponse.setSender(message.getSender().getUsername());
-            chatResponse.setTimestamp(message.getTimestamp().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-            chatResponse.setContent(decrypt(message.getContent()));
+            chatResponse.setTimestamp(message.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            chatResponse.setContent(messageCryptographer.decrypt(message.getContent()));
             chatResponse.setMessageId(message.getId());
             chatResponses.add(chatResponse);
         }
@@ -128,13 +100,13 @@ public class MessageService {
 
     @Transactional
     public ResponseEntity<?> deleteMessage(String token, UUID chatId, UUID messageId) {
-        Optional<ChatMessage> messageOptional =  messageRepository.findById(messageId);
+        Optional<Message> messageOptional = messageRepository.findById(messageId);
 
         if (messageOptional.isEmpty()) {
             return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "Message not found"), HttpStatus.NOT_FOUND);
         }
 
-        ChatMessage message = messageOptional.get();
+        Message message = messageOptional.get();
 
         try {
             User user = userUtils.getByToken(token);

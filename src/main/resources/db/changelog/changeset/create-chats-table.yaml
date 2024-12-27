@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-chats
+      author: LCP
+      changes:
+        - createTable:
+            tableName: chats
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: "gen_random_uuid()"
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: chat_name
+                  type: varchar
+              - column:
+                  name: created_at
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  type: timestamp
