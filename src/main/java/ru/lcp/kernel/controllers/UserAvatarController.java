@@ -12,8 +12,8 @@ import ru.lcp.kernel.services.AvatarService;
 public class UserAvatarController {
     private final AvatarService avatarService;
 
-    @PostMapping("/avatar/upload/{userToken}")
-    public ResponseEntity<?> uploadAvatar(@PathVariable String userToken, @RequestParam("file") MultipartFile file) {
+    @PostMapping("/avatar/upload")
+    public ResponseEntity<?> uploadAvatar(@RequestHeader(name = "X-Token") String userToken, @RequestParam("file") MultipartFile file) {
         return avatarService.uploadAvatar(userToken, file);
     }
 
