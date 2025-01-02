@@ -52,8 +52,8 @@ public class ChatService {
         chatParticipantService.addParticipantToChat(chat, user, ChatRoles.MEMBER);
         chatParticipantService.addParticipantToChat(chat, friend, ChatRoles.MEMBER);
 
-        simpMessagingTemplate.convertAndSend("/topic/user/chats/" + user.getUsername(), getChatsForUser(user));
-        simpMessagingTemplate.convertAndSend("/topic/user/chats/" + friend.getUsername(), getChatsForUser(friend));
+        simpMessagingTemplate.convertAndSend("/topic/user/chats/" + user.getUsername(), new PublicChat(chat));
+        simpMessagingTemplate.convertAndSend("/topic/user/chats/" + friend.getUsername(), new PublicChat(chat));
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
