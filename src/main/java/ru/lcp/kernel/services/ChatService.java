@@ -3,9 +3,11 @@ package ru.lcp.kernel.services;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.lcp.kernel.dtos.PublicChat;
+import ru.lcp.kernel.dtos.Username;
 import ru.lcp.kernel.entities.Chat;
 import ru.lcp.kernel.entities.User;
 import ru.lcp.kernel.enums.ChatRoles;
@@ -24,29 +26,35 @@ public class ChatService {
     private final ChatRepository chatRepository;
     private final UserUtils userUtils;
     private final ChatParticipantService chatParticipantService;
+    private final SimpMessagingTemplate simpMessagingTemplate;
 
     @Transactional
-    public ResponseEntity<?> createChat(String token, String username) {
+    public ResponseEntity<?> createChat(String token, Username username) {
+        User user;
+        User friend;
+
         try {
-            User user = userUtils.getByToken(token);
-            User friend = userUtils.getByUsername(username);
-
-            Optional<Chat> chatOptional = chatRepository.findChatByParticipants(user.getId(), friend.getId());
-
-            if (chatOptional.isPresent()) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).body(chatOptional.get().getId());
-            }
-
-            Chat chat = new Chat();
-            chatRepository.save(chat);
-
-            chatParticipantService.addParticipantToChat(chat, user, ChatRoles.MEMBER);
-            chatParticipantService.addParticipantToChat(chat, friend, ChatRoles.MEMBER);
-
-            return ResponseEntity.status(HttpStatus.CREATED).body(chat.getId());
+            user = userUtils.getByToken(token);
+            friend = userUtils.getByUsername(username.getUsername());
         } catch (UserNotFound | ChatNotFound e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
+
+        Optional<Chat> chatOptional = chatRepository.findChatByParticipants(user.getId(), friend.getId());
+
+        if (chatOptional.isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(chatOptional.get().getId());
+        }
+
+        Chat chat = new Chat();
+        chatRepository.save(chat);
+
+        chatParticipantService.addParticipantToChat(chat, user, ChatRoles.MEMBER);
+        chatParticipantService.addParticipantToChat(chat, friend, ChatRoles.MEMBER);
+
+        simpMessagingTemplate.convertAndSend("/topic/user/chats/" + user.getUsername(), getChatsForUser(user));
+        simpMessagingTemplate.convertAndSend("/topic/user/chats/" + friend.getUsername(), getChatsForUser(friend));
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     public List<PublicChat> getChatsForUser(User user) {
