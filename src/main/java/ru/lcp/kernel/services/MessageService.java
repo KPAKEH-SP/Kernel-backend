@@ -6,8 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import ru.lcp.kernel.dtos.ChatRequest;
-import ru.lcp.kernel.dtos.ChatResponse;
+import ru.lcp.kernel.dtos.MessageRequest;
+import ru.lcp.kernel.dtos.MessageResponse;
 import ru.lcp.kernel.entities.Message;
 import ru.lcp.kernel.entities.Chat;
 import ru.lcp.kernel.entities.User;
@@ -35,7 +35,7 @@ public class MessageService {
 
 
     @Transactional
-    public ChatResponse saveMessage(UUID chatId, ChatRequest chatRequest) {
+    public MessageResponse saveMessage(UUID chatId, MessageRequest chatRequest) {
         String encryptedContent = messageCryptographer.encrypt(chatRequest.getContent());
 
         User sender;
@@ -62,7 +62,7 @@ public class MessageService {
             }
         });
 
-        ChatResponse chatResponse = new ChatResponse();
+        MessageResponse chatResponse = new MessageResponse();
         chatResponse.setChatId(chatId);
         chatResponse.setSender(sender.getUsername());
         String timestamp = message.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
@@ -73,7 +73,7 @@ public class MessageService {
         return chatResponse;
     }
 
-    public List<ChatResponse> getMessages(UUID chatId) {
+    public List<MessageResponse> getMessages(UUID chatId) {
         Chat chat;
 
         try {
@@ -83,10 +83,10 @@ public class MessageService {
         }
 
         List<Message> messages = messageRepository.findByChatOrderByCreatedAt(chat);
-        List<ChatResponse> chatResponses = new ArrayList<>();
+        List<MessageResponse> chatResponses = new ArrayList<>();
 
         for (Message message : messages) {
-            ChatResponse chatResponse = new ChatResponse();
+            MessageResponse chatResponse = new MessageResponse();
             chatResponse.setChatId(message.getChat().getId());
             chatResponse.setSender(message.getSender().getUsername());
             chatResponse.setTimestamp(message.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));

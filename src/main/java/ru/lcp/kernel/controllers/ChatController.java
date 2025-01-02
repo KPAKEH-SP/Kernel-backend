@@ -9,12 +9,12 @@ import ru.lcp.kernel.services.ChatService;
 @RestController()
 @RequiredArgsConstructor
 @RequestMapping("/api/chats")
-public class PersonalChatController {
+public class ChatController {
     private final ChatService chatService;
 
     @PostMapping("/create")
     public ResponseEntity<?> createChat(@RequestHeader("X-Token") String token, @RequestBody Username username) {
-        return chatService.createChat(token, username.getUsername());
+        return chatService.createChat(token, username);
     }
 
     @GetMapping("/get")

@@ -23,6 +23,8 @@ public class ChatParticipantService {
         participant.setUser(user);
         participant.setRole(role);
         chatParticipantRepository.save(participant);
+
+        chat.addParticipant(participant);
     }
 
     public List<Chat> findChatsForUser(User user) {

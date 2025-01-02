@@ -9,8 +9,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
-import ru.lcp.kernel.dtos.ChatRequest;
-import ru.lcp.kernel.dtos.ChatResponse;
+import ru.lcp.kernel.dtos.MessageRequest;
+import ru.lcp.kernel.dtos.MessageResponse;
 import ru.lcp.kernel.dtos.ChatIdAndMessageId;
 import ru.lcp.kernel.services.MessageService;
 
@@ -25,13 +25,13 @@ public class MessageController {
 
     @MessageMapping("/chat/{chatId}")
     @SendTo("/topic/chat/{chatId}")
-    public ChatResponse handleMessage(@DestinationVariable UUID chatId, ChatRequest chatRequest) {
+    public MessageResponse handleMessage(@DestinationVariable UUID chatId, MessageRequest chatRequest) {
         return messageService.saveMessage(chatId, chatRequest);
     }
 
     @MessageMapping("/chat/history/{chatId}")
     @SendTo("/topic/chat/history/{chatId}")
-    public List<ChatResponse> sendChatHistory(@DestinationVariable UUID chatId) {
+    public List<MessageResponse> sendChatHistory(@DestinationVariable UUID chatId) {
         return messageService.getMessages(chatId);
     }
 

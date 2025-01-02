@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,8 +23,18 @@ public class Chat {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @OneToMany(mappedBy = "chat", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ChatParticipant> participants;
+    private List<ChatParticipant> participants = new ArrayList<>();
 
     @OneToMany(mappedBy = "chat", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Message> messages;
+
+    public void addParticipant(ChatParticipant participant) {
+        participants.add(participant);
+        participant.setChat(this);
+    }
+
+    public void removeParticipant(ChatParticipant participant) {
+        participants.remove(participant);
+        participant.setChat(null);
+    }
 }
