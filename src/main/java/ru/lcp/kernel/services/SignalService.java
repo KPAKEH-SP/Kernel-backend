@@ -1,0 +1,102 @@
+package ru.lcp.kernel.services;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import ru.lcp.kernel.dtos.SignalAnswer;
+import ru.lcp.kernel.dtos.SignalMessage;
+import ru.lcp.kernel.dtos.SignalOffer;
+import ru.lcp.kernel.entities.Chat;
+import ru.lcp.kernel.entities.User;
+import ru.lcp.kernel.exceptions.UserNotFound;
+import ru.lcp.kernel.utils.UserUtils;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class SignalService {
+    private final ChatService chatService;
+    private final SimpMessagingTemplate simpMessagingTemplate;
+    private final UserUtils userUtils;
+
+    @Transactional
+    public void handleCandidate(SignalMessage message) {
+        Chat chat = chatService.getChatById(message.getChatId());
+        User user;
+
+        try {
+            user = userUtils.getByToken(message.getInitiatorToken());
+        } catch (UserNotFound e) {
+            log.warn(e.getMessage());
+            throw new RuntimeException(e);
+        }
+
+        chat.getParticipants().forEach(participant -> {
+            if (!participant.getUser().getUsername().equals(user.getUsername())) {
+                simpMessagingTemplate.convertAndSend(
+                        "/topic/webrtc/user/candidate/" + participant.getUser().getUsername(),
+                        message.getData()
+                );
+                log.info("Sent ICE candidate to user: {}", participant.getUser().getUsername());
+            }
+        });
+    }
+
+    @Transactional
+    public void handleOffer(SignalMessage message) {
+        Chat chat = chatService.getChatById(message.getChatId());
+        User user;
+
+        try {
+            user = userUtils.getByToken(message.getInitiatorToken());
+        } catch (UserNotFound e) {
+            log.warn(e.getMessage());
+            throw new RuntimeException(e);
+        }
+
+        SignalOffer offer = new SignalOffer();
+        offer.setChatId(chat.getId());
+        offer.setInitiatorUsername(user.getUsername());
+        offer.setData(message.getData());
+
+        chat.getParticipants().forEach(participant -> {
+            if (!participant.getUser().getUsername().equals(user.getUsername())) {
+                simpMessagingTemplate.convertAndSend(
+                        "/topic/webrtc/user/offer/" + participant.getUser().getUsername(),
+                        offer
+                );
+            }
+        });
+    }
+
+    @Transactional
+    public void handleAnswer(SignalAnswer answer) {
+        Chat chat = chatService.getChatById(answer.getChatId());
+        User respondent;
+        User initiator;
+
+        try {
+            respondent = userUtils.getByToken(answer.getRespondentToken());
+            initiator = userUtils.getByUsername(answer.getInitiatorUsername());
+        } catch (UserNotFound e) {
+            log.warn(e.getMessage());
+            throw new RuntimeException(e);
+        }
+
+        boolean respondentInChat = chat.getParticipants().stream().anyMatch(
+                participant -> participant.getUser().equals(respondent)
+        );
+
+        boolean initiatorInChat = chat.getParticipants().stream().anyMatch(
+                participant -> participant.getUser().equals(initiator)
+        );
+
+        if (respondentInChat && initiatorInChat) {
+            simpMessagingTemplate.convertAndSend(
+                    "/topic/webrtc/user/answer/" + initiator.getUsername(),
+                    answer.getData());
+        }
+    }
+}
