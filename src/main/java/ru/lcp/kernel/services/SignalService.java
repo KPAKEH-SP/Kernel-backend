@@ -5,9 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.lcp.kernel.dtos.SignalAnswer;
-import ru.lcp.kernel.dtos.SignalMessage;
-import ru.lcp.kernel.dtos.SignalOffer;
+import ru.lcp.kernel.dtos.*;
 import ru.lcp.kernel.entities.Chat;
 import ru.lcp.kernel.entities.User;
 import ru.lcp.kernel.exceptions.UserNotFound;
@@ -24,23 +22,13 @@ public class SignalService {
     @Transactional
     public void handleCandidate(SignalMessage message) {
         Chat chat = chatService.getChatById(message.getChatId());
-        User user;
-
-        try {
-            user = userUtils.getByToken(message.getInitiatorToken());
-        } catch (UserNotFound e) {
-            log.warn(e.getMessage());
-            throw new RuntimeException(e);
-        }
 
         chat.getParticipants().forEach(participant -> {
-            if (!participant.getUser().getUsername().equals(user.getUsername())) {
-                simpMessagingTemplate.convertAndSend(
-                        "/topic/webrtc/user/candidate/" + participant.getUser().getUsername(),
-                        message.getData()
-                );
-                log.info("Sent ICE candidate to user: {}", participant.getUser().getUsername());
-            }
+            simpMessagingTemplate.convertAndSend(
+                    "/topic/webrtc/user/candidate/" + participant.getUser().getUsername(),
+                    message.getData()
+            );
+            log.debug("Sent ICE candidate: {}\nto user: {}", message.getData(), participant.getUser().getUsername());
         });
     }
 
@@ -67,6 +55,7 @@ public class SignalService {
                         "/topic/webrtc/user/offer/" + participant.getUser().getUsername(),
                         offer
                 );
+                log.debug("Sent offer: {}\nto user: {}",offer, participant.getUser().getUsername());
             }
         });
     }
@@ -97,6 +86,57 @@ public class SignalService {
             simpMessagingTemplate.convertAndSend(
                     "/topic/webrtc/user/answer/" + initiator.getUsername(),
                     answer.getData());
+            log.debug("Sent answer: {}\nto user: {}", answer.getData(), initiator.getUsername());
+        }
+    }
+
+    @Transactional
+    public void handleCall(CallMessage message) {
+        System.out.println(message);
+        switch (message.getType()){
+            case REQUEST -> {
+                try {
+                    User sender = userUtils.getByToken(message.getSenderToken());
+                    User respondent = userUtils.getByUsername(message.getRespondentUsername());
+
+                    CallAnswer callAnswer = new CallAnswer();
+                    callAnswer.setChatId(message.getChatId());
+                    callAnswer.setSenderUsername(sender.getUsername());
+
+                    simpMessagingTemplate.convertAndSend(
+                            "/topic/user/call/request/" + respondent.getUsername(),
+                            callAnswer);
+                } catch (UserNotFound e) {
+                    log.warn(e.getMessage());
+                    throw new RuntimeException(e);
+                }
+            }
+
+            case ACCEPT -> {
+                try {
+                    User respondent = userUtils.getByToken(message.getSenderToken());
+
+                    simpMessagingTemplate.convertAndSend(
+                            "/topic/user/call/accept/" + respondent.getUsername(),
+                            "ACCEPTED");
+                } catch (UserNotFound e) {
+                    log.warn(e.getMessage());
+                    throw new RuntimeException(e);
+                }
+            }
+
+            case REJECT -> {
+                try {
+                    User respondent = userUtils.getByUsername(message.getRespondentUsername());
+
+                    simpMessagingTemplate.convertAndSend(
+                            "/topic/user/call/reject/" + respondent.getUsername(),
+                            "REJECTED");
+                } catch (UserNotFound e) {
+                    log.warn(e.getMessage());
+                    throw new RuntimeException(e);
+                }
+            }
         }
     }
 }
