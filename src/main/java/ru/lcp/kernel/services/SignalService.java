@@ -114,7 +114,7 @@ public class SignalService {
 
             case ACCEPT -> {
                 try {
-                    User respondent = userUtils.getByToken(message.getSenderToken());
+                    User respondent = userUtils.getByUsername(message.getRespondentUsername());
 
                     simpMessagingTemplate.convertAndSend(
                             "/topic/user/call/accept/" + respondent.getUsername(),
