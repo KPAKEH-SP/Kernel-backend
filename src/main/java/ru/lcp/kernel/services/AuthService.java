@@ -68,7 +68,7 @@ public class AuthService {
 
             return ResponseEntity.ok(userInfoResponse);
         } catch (ExpiredJwtException e) {
-            return new ResponseEntity<>(new ApplicationError(HttpStatus.BAD_REQUEST.value(), "Expired token"), HttpStatus.UNAUTHORIZED);
+            return ResponseEntity.badRequest().body("Expired token");
         }
 
     }
