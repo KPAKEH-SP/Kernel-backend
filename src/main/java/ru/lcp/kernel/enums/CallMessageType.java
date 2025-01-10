@@ -4,4 +4,5 @@ public enum CallMessageType {
     REQUEST,
     ACCEPT,
     REJECT,
+    ERROR,
 }
