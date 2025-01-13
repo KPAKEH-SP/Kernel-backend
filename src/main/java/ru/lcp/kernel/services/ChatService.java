@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.lcp.kernel.dtos.CreateGroupChatRequest;
 import ru.lcp.kernel.dtos.PublicChat;
 import ru.lcp.kernel.dtos.Username;
 import ru.lcp.kernel.entities.Chat;
@@ -16,6 +17,7 @@ import ru.lcp.kernel.exceptions.UserNotFound;
 import ru.lcp.kernel.repositories.ChatRepository;
 import ru.lcp.kernel.utils.UserUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,6 +56,35 @@ public class ChatService {
 
         simpMessagingTemplate.convertAndSend("/topic/user/chats/" + user.getUsername(), new PublicChat(chat));
         simpMessagingTemplate.convertAndSend("/topic/user/chats/" + friend.getUsername(), new PublicChat(chat));
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @Transactional
+    public ResponseEntity<?> createGroupChat(String token, CreateGroupChatRequest membersUsernames) {
+        User creator;
+        List<User> members = new ArrayList<>();
+
+        try {
+            creator = userUtils.getByToken(token);
+
+            for (String member : membersUsernames.getMembersUsernames()) {
+                members.add(userUtils.getByUsername(member));
+            }
+        } catch (UserNotFound e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+
+        Chat chat = new Chat();
+        chat.setChatName(membersUsernames.getChatName());
+        chatRepository.save(chat);
+        simpMessagingTemplate.convertAndSend("/topic/user/chats/" + creator.getUsername(), new PublicChat(chat));
+
+        chatParticipantService.addParticipantToChat(chat, creator, ChatRoles.CREATOR);
+        for (User member : members) {
+            chatParticipantService.addParticipantToChat(chat, member, ChatRoles.MEMBER);
+            simpMessagingTemplate.convertAndSend("/topic/user/chats/" + member.getUsername(), new PublicChat(chat));
+        }
+
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
