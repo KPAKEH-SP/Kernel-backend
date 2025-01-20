@@ -7,6 +7,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.lcp.kernel.dtos.CreateGroupChatRequest;
+import ru.lcp.kernel.dtos.ChangeChatNameRequest;
 import ru.lcp.kernel.dtos.PublicChat;
 import ru.lcp.kernel.dtos.Username;
 import ru.lcp.kernel.entities.Chat;
@@ -110,5 +111,28 @@ public class ChatService {
         }
 
         return chatOpt.get();
+    }
+
+    public ResponseEntity<?> changeChatName(String token, ChangeChatNameRequest request) {
+        Chat chat;
+        User user;
+
+        try {
+            chat = getChatById(request.getId());
+            user = userUtils.getByToken(token);
+        } catch (ChatNotFound | UserNotFound e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+
+        boolean userIsCreator = chat.getParticipants().stream().anyMatch(chatParticipant ->
+                chatParticipant.getUser().getUsername().equals(user.getUsername()) &&
+                chatParticipant.getRole() == ChatRoles.CREATOR);
+
+        if (!userIsCreator) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).body("Not enough rights");
+        }
+        chat.setChatName(request.getNewChatName());
+        chatRepository.save(chat);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }
